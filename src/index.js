@@ -1,4 +1,3 @@
-import './styles.css'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
@@ -8,9 +7,8 @@ import Stats from 'stats.js'
 import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
 import { GenerateSDFMaterial } from './GenerateSDFMaterial.js'
 import { RenderSDFLayerMaterial } from './RenderSDFLayerMaterial.js'
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RayMarchSDFMaterial } from './RayMarchSDFMaterial'
-import { PostprocessMaterial } from './PostprocessMaterial'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 
 const params = {
   gpuGeneration: true,
@@ -23,31 +21,23 @@ const params = {
   surface: -0.0077
 }
 
-let renderer,
-  camera,
-  scene,
-  gui,
-  stats,
-  boxHelper,
-  fboScene,
-  fboRayMarch,
-  fboFinal
+let renderer, camera, scene, gui, stats, boxHelper
 let outputContainer, bvh, geometry, sdfTex, mesh
-let generateSdfPass, layerPass, raymarchPass, postprocess
+let generateSdfPass, layerPass, raymarchPass
 const inverseBoundsMatrix = new THREE.Matrix4()
 
 init()
 render()
 
 function init() {
-  outputContainer = document.getElementById('app')
+  outputContainer = document.getElementById('output')
 
   // renderer setup
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(window.devicePixelRatio)
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setClearColor(0, 0)
-  renderer.outputEncoding = THREE.sRGBEncoding
+  renderer.outputColorSpace = THREE.SRGBColorSpace
   document.body.appendChild(renderer.domElement)
 
   // scene setup
@@ -87,8 +77,6 @@ function init() {
   // screen pass to render the sdf ray marching
   raymarchPass = new FullScreenQuad(new RayMarchSDFMaterial())
 
-  postprocess = new FullScreenQuad(new PostprocessMaterial())
-
   new GLTFLoader()
     .setMeshoptDecoder(MeshoptDecoder)
     .loadAsync('https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb')
@@ -114,23 +102,12 @@ function init() {
 
   rebuildGUI()
 
-  fboScene = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight)
-  fboScene.depthTexture = new THREE.DepthTexture(512, 512)
-  fboScene.depthTexture.type = THREE.FloatType
-  fboRayMarch = fboScene.clone()
-  fboRayMarch.depthTexture = new THREE.DepthTexture(512, 512)
-
-  fboFinal = fboScene.clone()
-
   window.addEventListener(
     'resize',
     function () {
       camera.aspect = window.innerWidth / window.innerHeight
       camera.updateProjectionMatrix()
       renderer.setSize(window.innerWidth, window.innerHeight)
-      fboScene.setSize(window.innerWidth, window.innerHeight)
-      fboRayMarch.setSize(window.innerWidth, window.innerHeight)
-      fboFinal.setSize(window.innerWidth, window.innerHeight)
     },
     false
   )
@@ -285,77 +262,74 @@ function updateSDF() {
 }
 
 function render() {
-  stats.update()
-  requestAnimationFrame(render)
 
-  renderer.setRenderTarget(fboScene)
-  renderer.render(scene, camera)
+	stats.update();
+	requestAnimationFrame( render );
 
-  if (!sdfTex) {
-    // render nothing
-    return
-  } else if (params.mode === 'geometry') {
-    // render the rasterized geometry
-    renderer.render(scene, camera)
-  } else if (params.mode === 'layer' || params.mode === 'grid layers') {
-    // render a layer of the 3d texture
-    let tex
-    const material = layerPass.material
-    if (sdfTex.isData3DTexture) {
-      material.uniforms.layer.value = params.layer / sdfTex.image.width
-      material.uniforms.sdfTex.value = sdfTex
-      tex = sdfTex
-    } else {
-      material.uniforms.layer.value = params.layer / sdfTex.width
-      material.uniforms.sdfTex.value = sdfTex.texture
-      tex = sdfTex.texture
-    }
+	if ( ! sdfTex ) {
 
-    material.uniforms.layers.value = tex.image.width
+		// render nothing
+		return;
 
-    const gridMode = params.mode === 'layer' ? 0 : 1
-    if (gridMode !== material.defines.DISPLAY_GRID) {
-      material.defines.DISPLAY_GRID = gridMode
-      material.needsUpdate = true
-    }
+	} else if ( params.mode === 'geometry' ) {
 
-    layerPass.render(renderer)
-  } else if (params.mode === 'raymarching') {
-    // render the ray marched texture
-    camera.updateMatrixWorld()
-    mesh.updateMatrixWorld()
+		// render the rasterized geometry
+		renderer.render( scene, camera );
 
-    let tex
-    if (sdfTex.isData3DTexture) {
-      tex = sdfTex
-    } else {
-      tex = sdfTex.texture
-    }
+	} else if ( params.mode === 'layer' || params.mode === 'grid layers' ) {
 
-    const { width, depth, height } = tex.image
-    raymarchPass.material.uniforms.sdfTex.value = tex
-    raymarchPass.material.uniforms.normalStep.value.set(
-      1 / width,
-      1 / height,
-      1 / depth
-    )
-    raymarchPass.material.uniforms.surface.value = params.surface
-    raymarchPass.material.uniforms.projectionInverse.value.copy(
-      camera.projectionMatrixInverse
-    )
-    raymarchPass.material.uniforms.sdfTransformInverse.value
-      .copy(mesh.matrixWorld)
-      .invert()
-      .premultiply(inverseBoundsMatrix)
-      .multiply(camera.matrixWorld)
-    renderer.setRenderTarget(fboRayMarch)
-    raymarchPass.render(renderer)
-    renderer.setRenderTarget(null)
-    postprocess.material.uniforms.raymarchAlbedo.value = fboRayMarch.texture
-    postprocess.material.uniforms.raymarchDepth.value = fboRayMarch.depthTexture
-    postprocess.material.uniforms.sceneAlbedo.value = fboScene.texture
-    postprocess.material.uniforms.sceneDepth.value = fboScene.depthTexture
+		// render a layer of the 3d texture
+		let tex;
+		const material = layerPass.material;
+		if ( sdfTex.isData3DTexture ) {
 
-    postprocess.render(renderer)
-  }
+			material.uniforms.layer.value = params.layer / sdfTex.image.width;
+			material.uniforms.sdfTex.value = sdfTex;
+			tex = sdfTex;
+
+		} else {
+
+			material.uniforms.layer.value = params.layer / sdfTex.width;
+			material.uniforms.sdfTex.value = sdfTex.texture;
+			tex = sdfTex.texture;
+
+		}
+
+		material.uniforms.layers.value = tex.image.width;
+
+		const gridMode = params.mode === 'layer' ? 0 : 1;
+		if ( gridMode !== material.defines.DISPLAY_GRID ) {
+
+			material.defines.DISPLAY_GRID = gridMode;
+			material.needsUpdate = true;
+
+		}
+
+		layerPass.render( renderer );
+
+	} else if ( params.mode === 'raymarching' ) {
+
+		// render the ray marched texture
+		camera.updateMatrixWorld();
+		mesh.updateMatrixWorld();
+
+		let tex;
+		if ( sdfTex.isData3DTexture ) {
+
+			tex = sdfTex;
+
+		} else {
+
+			tex = sdfTex.texture;
+
+		}
+
+		const { width, depth, height } = tex.image;
+		raymarchPass.material.uniforms.sdfTex.value = tex;
+		raymarchPass.material.uniforms.normalStep.value.set( 1 / width, 1 / height, 1 / depth );
+		raymarchPass.material.uniforms.surface.value = params.surface;
+		raymarchPass.material.uniforms.projectionInverse.value.copy( camera.projectionMatrixInverse );
+		raymarchPass.material.uniforms.sdfTransformInverse.value.copy( mesh.matrixWorld ).invert().premultiply( inverseBoundsMatrix ).multiply( camera.matrixWorld );
+		raymarchPass.render( renderer );
+	}
 }

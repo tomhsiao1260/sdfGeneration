@@ -5,6 +5,7 @@
 SDF generation example from three-mesh-bvh:
 
 code: https://github.com/gkjohnson/three-mesh-bvh/blob/master/example/sdfGeneration.js
+
 issue: https://github.com/gkjohnson/three-mesh-bvh/issues/497#issuecomment-1334552994
 
 
