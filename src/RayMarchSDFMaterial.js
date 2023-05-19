@@ -1,13 +1,19 @@
-import { ShaderMaterial, Matrix4 } from "three";
-import { MeshBVHUniformStruct } from "three-mesh-bvh";
+import { ShaderMaterial, Matrix4, Vector3 } from "three";
 
-export class GenerateSDFMaterial extends ShaderMaterial {
+export class RayMarchSDFMaterial extends ShaderMaterial {
   constructor(params) {
     super({
+      defines: {
+        MAX_STEPS: 500,
+        SURFACE_EPSILON: 0.001
+      },
+
       uniforms: {
-        matrix: { value: new Matrix4() },
-        zValue: { value: 0 },
-        bvh: { value: new MeshBVHUniformStruct() }
+        surface: { value: 0 },
+        sdfTex: { value: null },
+        normalStep: { value: new Vector3() },
+        projectionInverse: { value: new Matrix4() },
+        sdfTransformInverse: { value: new Matrix4() }
       },
 
       vertexShader: /* glsl */ `
