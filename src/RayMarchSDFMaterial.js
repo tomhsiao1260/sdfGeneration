@@ -48,6 +48,8 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 					return vec2( distToBox, distInsideBox );
 				}
 				void main() {
+          float fragCoordZ = -1.;
+
           // get the inverse of the sdf box transform
 					mat4 sdfTransform = inverse( sdfTransformInverse );
           // convert the uv to clip space for ray transformation
@@ -66,11 +68,38 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 					bool intersectsBox = distInsideBox > 0.0;
 					gl_FragColor = vec4( 0.0 );
           if ( intersectsBox ) {
-					  gl_FragColor = vec4( 1.0 );
+            // find the surface point in world space
+            bool intersectsSurface = false;
+            vec4 localPoint = vec4( sdfRayOrigin + sdfRayDirection * ( distToBox + 1e-5 ), 1.0 );
+            vec4 point = sdfTransform * localPoint;
+            // ray march
+            for ( int i = 0; i < MAX_STEPS; i ++ ) {
+              // sdf box extends from - 0.5 to 0.5
+              // transform into the local bounds space [ 0, 1 ] and check if we're inside the bounds
+              vec3 uv = ( sdfTransformInverse * point ).xyz + vec3( 0.5 );
+              if ( uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || uv.z < 0.0 || uv.z > 1.0 ) {
+								break;
+							}
+              // get the distance to surface and exit the loop if we're close to the surface
+              float distanceToSurface = texture2D( sdfTex, uv ).r - surface;
+              if ( distanceToSurface < SURFACE_EPSILON ) {
+								intersectsSurface = true;
+								break;
+							}
+              // step the ray
+							point.xyz += rayDirection * abs( distanceToSurface );
+            }
+            // find the surface normal
+						if ( intersectsSurface ) {
+              float dx = texture( sdfTex, vec3(vUv, 0.5) ).r;
+              gl_FragColor = vec4( vec3(dx), 1.0 );
+            }
           }
 
-          // float dx = texture( sdfTex, vec3(vUv, 0.5) ).r;
-					// gl_FragColor = vec4( vec3(dx), 1.0 );
+          float cameraNear = 0.1;
+					float cameraFar = 5.0;
+					gl_FragDepth = viewZToPerspectiveDepth(-fragCoordZ, cameraNear, cameraFar);
+
           #include <encodings_fragment>
 				}
 			`
