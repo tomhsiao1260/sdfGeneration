@@ -95,10 +95,11 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 
               // compute the surface normal (performance bottleneck)
               vec3 uv = ( sdfTransformInverse * point ).xyz + vec3( 0.5 );
-							float dx = texture( sdfTex, uv + vec3( normalStep.x, 0.0, 0.0 ) ).r - texture( sdfTex, uv - vec3( normalStep.x, 0.0, 0.0 ) ).r;
-							float dy = texture( sdfTex, uv + vec3( 0.0, normalStep.y, 0.0 ) ).r - texture( sdfTex, uv - vec3( 0.0, normalStep.y, 0.0 ) ).r;
-							float dz = texture( sdfTex, uv + vec3( 0.0, 0.0, normalStep.z ) ).r - texture( sdfTex, uv - vec3( 0.0, 0.0, normalStep.z ) ).r;
-							vec3 normal = normalize( vec3( dx, dy, dz ) );
+                           vec2 k = vec2(1, - 1);
+              vec3 normal = normalize( k.xyy * texture( sdfTex, uv + k.xyy * normalStep.x ).r + 
+                                       k.yyx * texture( sdfTex, uv + k.yyx * normalStep.x ).r + 
+                                       k.yxy * texture( sdfTex, uv + k.yxy * normalStep.x ).r + 
+                                       k.xxx * texture( sdfTex, uv + k.xxx * normalStep.x ).r );
               // compute some basic lighting effects
               vec3 lightDirection = normalize( vec3( 1.0 ) );
               float lightIntensity =

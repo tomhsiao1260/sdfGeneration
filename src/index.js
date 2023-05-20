@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -9,7 +8,6 @@ import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
 import { GenerateSDFMaterial } from './GenerateSDFMaterial.js'
 import { RenderSDFLayerMaterial } from './RenderSDFLayerMaterial.js'
 import { RayMarchSDFMaterial } from './RayMarchSDFMaterial.js'
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 
 const params = {
     gpuGeneration: true,
@@ -19,7 +17,7 @@ const params = {
 
     mode: 'raymarching',
     layer: 0,
-    surface: -0.0077
+    surface: 0.018
 }
 
 let renderer, camera, scene, gui, stats, boxHelper
@@ -82,12 +80,6 @@ function init() {
         .loadAsync('tree.obj')
         .then((object) => {
             const staticGen = new StaticGeometryGenerator(object)
-    // new GLTFLoader()
-        // .setMeshoptDecoder(MeshoptDecoder)
-        // .loadAsync('https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb')
-        // .then((gltf) => {
-            // gltf.scene.updateMatrixWorld(true)
-            // const staticGen = new StaticGeometryGenerator(gltf.scene)
 
             staticGen.attributes = ['position', 'normal']
             staticGen.useGroups = false
@@ -231,6 +223,11 @@ function render() {
 		// render nothing
 		return;
 
+    } else if ( params.mode === 'geometry' ) {
+
+        // render the rasterized geometry
+		renderer.render( scene, camera );
+
 	} else if ( params.mode === 'layer' || params.mode === 'grid layers' ) {
         
         // render a layer of the 3d texture
@@ -269,6 +266,4 @@ function render() {
 		raymarchPass.material.uniforms.sdfTransformInverse.value.copy( mesh.matrixWorld ).invert().premultiply( inverseBoundsMatrix ).multiply( camera.matrixWorld );
 		raymarchPass.render( renderer );
     }
-
-    // renderer.render( scene, camera );
 }
