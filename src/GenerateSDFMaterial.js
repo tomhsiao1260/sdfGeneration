@@ -20,9 +20,9 @@ export class GenerateSDFMaterial extends ShaderMaterial {
 
       fragmentShader: /* glsl */ `
 				varying vec2 vUv;
-                uniform float zValue;
+          uniform float zValue;
 				void main() {
-                    float dist = length(vec3(vUv, zValue) - 0.5) - 0.3;
+          float dist = length(vec3(vUv, zValue) - 0.5) - 0.3;
 					gl_FragColor = vec4( dist, 0, 0, 0 );
 				}
 			`

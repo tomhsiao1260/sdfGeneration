@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import Stats from 'stats.js'
 import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
 import { GenerateSDFMaterial } from './GenerateSDFMaterial.js'
+import { RenderSDFLayerMaterial } from './RenderSDFLayerMaterial.js'
 import { RayMarchSDFMaterial } from './RayMarchSDFMaterial.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 
@@ -14,13 +15,16 @@ const params = {
     resolution: 75,
     margin: 0.2,
 
-    mode: 'raymarching',
+    mode: 'layer',
+    // mode: 'grid layers',
+    // mode: 'raymarching',
+    layer: 0,
     surface: -0.0077
 }
 
 let renderer, camera, scene, stats, boxHelper
 let outputContainer, bvh, geometry, sdfTex, mesh
-let generateSdfPass, raymarchPass
+let generateSdfPass, layerPass, raymarchPass
 const inverseBoundsMatrix = new THREE.Matrix4()
 
 init()
@@ -67,6 +71,9 @@ function init() {
 
     // sdf pass to generate the 3d texture
     generateSdfPass = new FullScreenQuad(new GenerateSDFMaterial())
+
+    // screen pass to render a single layer of the 3d texture
+    layerPass = new FullScreenQuad(new RenderSDFLayerMaterial())
 
     // screen pass to render the sdf ray marching
     raymarchPass = new FullScreenQuad(new RayMarchSDFMaterial())
@@ -168,8 +175,10 @@ function updateSDF() {
         renderer.readRenderTargetPixels(sdfTex, 0, 0, 1, 1, new Float32Array(4))
         renderer.setRenderTarget(null)
 
-        // renderer.setRenderTarget(null);
+        renderer.setRenderTarget(null);
         // generateSdfPass.render(renderer);
+        layerPass.render(renderer);
+        // raymarchPass.render(renderer);
     }
 
     // update the timing display
@@ -187,22 +196,35 @@ function render() {
 		// render nothing
 		return;
 
-	} else if ( params.mode === 'raymarching' ) {
+	} else if ( params.mode === 'layer' || params.mode === 'grid layers' ) {
+        
+        // render a layer of the 3d texture
+		let tex;
+		const material = layerPass.material;
+
+		material.uniforms.layer.value = params.layer / sdfTex.width;
+        material.uniforms.layers.value = sdfTex.texture.image.width;
+		material.uniforms.sdfTex.value = sdfTex.texture;
+		tex = sdfTex.texture;
+
+        const gridMode = params.mode === 'layer' ? 0 : 1;
+		if ( gridMode !== material.defines.DISPLAY_GRID ) {
+
+			material.defines.DISPLAY_GRID = gridMode;
+			material.needsUpdate = true;
+
+		}
+
+        layerPass.render( renderer );
+
+    } else if ( params.mode === 'raymarching' ) {
 
         // render the ray marched texture
         camera.updateMatrixWorld();
 		mesh.updateMatrixWorld();
 
         let tex;
-        if ( sdfTex.isData3DTexture ) {
-
-			tex = sdfTex;
-
-		} else {
-
-			tex = sdfTex.texture;
-
-		}
+        tex = sdfTex.texture;
 
         const { width, depth, height } = tex.image;
         raymarchPass.material.uniforms.sdfTex.value = tex;
