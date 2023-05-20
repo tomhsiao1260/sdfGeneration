@@ -17,9 +17,7 @@ const params = {
     margin: 0.2,
     regenerate: () => updateSDF(),
 
-    mode: 'layer',
-    // mode: 'grid layers',
-    // mode: 'raymarching',
+    mode: 'raymarching',
     layer: 0,
     surface: -0.0077
 }
