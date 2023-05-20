@@ -91,8 +91,22 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
             }
             // find the surface normal
 						if ( intersectsSurface ) {
-              float dx = texture( sdfTex, vec3(vUv, 0.5) ).r;
-              gl_FragColor = vec4( vec3(dx), 1.0 );
+              fragCoordZ = -point.z;
+
+              // compute the surface normal (performance bottleneck)
+              vec3 uv = ( sdfTransformInverse * point ).xyz + vec3( 0.5 );
+							float dx = texture( sdfTex, uv + vec3( normalStep.x, 0.0, 0.0 ) ).r - texture( sdfTex, uv - vec3( normalStep.x, 0.0, 0.0 ) ).r;
+							float dy = texture( sdfTex, uv + vec3( 0.0, normalStep.y, 0.0 ) ).r - texture( sdfTex, uv - vec3( 0.0, normalStep.y, 0.0 ) ).r;
+							float dz = texture( sdfTex, uv + vec3( 0.0, 0.0, normalStep.z ) ).r - texture( sdfTex, uv - vec3( 0.0, 0.0, normalStep.z ) ).r;
+							vec3 normal = normalize( vec3( dx, dy, dz ) );
+              // compute some basic lighting effects
+              vec3 lightDirection = normalize( vec3( 1.0 ) );
+              float lightIntensity =
+                saturate( dot( normal, lightDirection ) ) +
+                saturate( dot( normal, - lightDirection ) ) * 0.05 +
+                0.1;
+              gl_FragColor.rgb = vec3( lightIntensity );
+              gl_FragColor.a = 1.0;
             }
           }
 
