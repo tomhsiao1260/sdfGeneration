@@ -211,9 +211,8 @@ function updateSDF() {
         renderer.readRenderTargetPixels(sdfTex, 0, 0, 1, 1, new Float32Array(4))
         renderer.setRenderTarget(null)
 
-        renderer.setRenderTarget(null);
         // generateSdfPass.render(renderer);
-        layerPass.render(renderer);
+        // layerPass.render(renderer);
         // raymarchPass.render(renderer);
     }
 
