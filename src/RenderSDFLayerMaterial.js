@@ -28,17 +28,20 @@ export class RenderSDFLayerMaterial extends ShaderMaterial {
         uniform float layer;
         uniform float layers;
 				void main() {
+          vec3 c_positive = vec3(0, 0.3, 1.0);
+          vec3 c_negative = vec3(1.0, 1.0, 0.0);
+
           #if DISPLAY_GRID
           float dim = ceil( sqrt( layers ) );
 					vec2 cell = floor( vUv * dim );
 					vec2 frac = vUv * dim - cell;
 					float zLayer = ( cell.y * dim + cell.x ) / ( dim * dim );
 					float dist = texture( sdfTex, vec3( frac, zLayer ) ).r;
-					gl_FragColor.rgb = dist > 0.0 ? vec3( 0, dist, 0 ) : vec3( - dist, 0, 0 );
+					gl_FragColor.rgb = dist > 0.0 ? dist * c_positive : - dist * c_negative;
 					gl_FragColor.a = 1.0;
           #else
           float dist = texture( sdfTex, vec3( vUv, layer ) ).r;
-					gl_FragColor.rgb = dist > 0.0 ? vec3( 0, dist, 0 ) : vec3( - dist, 0, 0 );
+					gl_FragColor.rgb = dist > 0.0 ? dist * c_positive : - dist * c_negative;
 					gl_FragColor.a = 1.0;
           #endif
           #include <encodings_fragment>

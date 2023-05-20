@@ -1,15 +1,11 @@
 import * as THREE from 'three'
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import Stats from 'stats.js'
-import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
 import { GenerateSDFMaterial } from './GenerateSDFMaterial.js'
 import { RenderSDFLayerMaterial } from './RenderSDFLayerMaterial.js'
 import { RayMarchSDFMaterial } from './RayMarchSDFMaterial.js'
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 
 const params = {
     gpuGeneration: true,
@@ -23,7 +19,7 @@ const params = {
 }
 
 let renderer, camera, scene, gui, stats, boxHelper
-let outputContainer, bvh, geometry, sdfTex, mesh
+let outputContainer, geometry, sdfTex, mesh
 let generateSdfPass, layerPass, raymarchPass
 const inverseBoundsMatrix = new THREE.Matrix4()
 
@@ -78,33 +74,13 @@ function init() {
     // screen pass to render the sdf ray marching
     raymarchPass = new FullScreenQuad(new RayMarchSDFMaterial())
 
-    new OBJLoader()
-        .loadAsync('tree.obj')
-        .then((object) => {
-            const staticGen = new StaticGeometryGenerator(object)
-    // new GLTFLoader()
-        // .setMeshoptDecoder(MeshoptDecoder)
-        // .loadAsync('https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/stanford-bunny/bunny.glb')
-        // .then((gltf) => {
-            // gltf.scene.updateMatrixWorld(true)
-            // const staticGen = new StaticGeometryGenerator(gltf.scene)
+    // a bounding box mesh for raymarching
+    geometry = new THREE.BoxGeometry(1, 1, 1)
+    geometry.computeBoundingBox()
+    mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
+    scene.add(mesh)
 
-            staticGen.attributes = ['position', 'normal']
-            staticGen.useGroups = false
-
-            geometry = staticGen.generate().center()
-
-            return new MeshBVH(geometry, { maxLeafTris: 1 })
-        })
-        .then((result) => {
-            bvh = result
-      
-            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial())
-            scene.add(mesh)
-
-            updateSDF()
-        })
-
+    updateSDF()
     rebuildGUI()
 
     window.addEventListener(
@@ -120,9 +96,7 @@ function init() {
 
 // build the gui with parameters based on the selected display mode
 function rebuildGUI() {
-    if (gui) {
-        gui.destroy()
-    }
+    if (gui) { gui.destroy() }
 
     params.layer = Math.min(params.resolution, params.layer)
 
@@ -136,7 +110,7 @@ function rebuildGUI() {
 
     const displayFolder = gui.addFolder('display')
     displayFolder
-      .add(params, 'mode', ['geometry', 'raymarching', 'layer', 'grid layers'])
+      .add(params, 'mode', ['raymarching', 'layer', 'grid layers'])
       .onChange(() => {
         rebuildGUI()
       })
@@ -194,7 +168,6 @@ function updateSDF() {
         sdfTex.texture.magFilter = THREE.LinearFilter
 
         // prep the sdf generation material pass
-        generateSdfPass.material.uniforms.bvh.value.updateFrom(bvh)
         generateSdfPass.material.uniforms.matrix.value.copy(matrix)
 
         // render into each layer

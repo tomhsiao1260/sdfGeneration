@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "stats.js": "^0.17.0",
-    "three": "^0.152.2",
-    "three-mesh-bvh": "^0.5.24"
+    "three": "^0.152.2"
   }
 }
