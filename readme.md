@@ -1,13 +1,14 @@
 <h1 align="center">SDF Generation</h1>
 
+<p align="center">
+    <img src="https://github.com/tomhsiao1260/sdfGeneration/assets/31985811/c7394514-d2ae-4396-9b6d-d4168fd6d0f5" width="800px"/>
+</p>
+ 
 ## Introduction
 
-SDF generation example from three-mesh-bvh:
+SDF generation that can save your SDF function into [THREE.Data3DTexture](https://threejs.org/docs/#api/en/textures/Data3DTexture) and then render it via raymarching techniques. You can write your SDF in `GenerateSDFMaterial.js` to give it a try.
 
-code: https://github.com/gkjohnson/three-mesh-bvh/blob/master/example/sdfGeneration.js
-
-issue: https://github.com/gkjohnson/three-mesh-bvh/issues/497#issuecomment-1334552994
-
+It's modified from three-mesh-bvh [example](https://github.com/gkjohnson/three-mesh-bvh/blob/master/example/sdfGeneration.js).
 
 ## Install
 
