@@ -22,9 +22,19 @@ export class RenderSDFLayerMaterial extends ShaderMaterial {
 			`,
 
       fragmentShader: /* glsl */ `
+        precision highp sampler3D;
 				varying vec2 vUv;
+        uniform sampler3D sdfTex;
+        uniform float layer;
+        uniform float layers;
 				void main() {
-					gl_FragColor = vec4( vUv, 0.0, 1.0 );
+          #if DISPLAY_GRID
+					gl_FragColor = vec4( vUv, 1.0, 1.0 );
+          #else
+          float dist = texture( sdfTex, vec3( vUv, layer ) ).r;
+					gl_FragColor.rgb = dist > 0.0 ? vec3( 0, dist, 0 ) : vec3( - dist, 0, 0 );
+					gl_FragColor.a = 1.0;
+          #endif
 				}
 			`
     });

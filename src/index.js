@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import Stats from 'stats.js'
 import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
@@ -14,6 +15,7 @@ const params = {
     gpuGeneration: true,
     resolution: 75,
     margin: 0.2,
+    regenerate: () => updateSDF(),
 
     mode: 'layer',
     // mode: 'grid layers',
@@ -22,7 +24,7 @@ const params = {
     surface: -0.0077
 }
 
-let renderer, camera, scene, stats, boxHelper
+let renderer, camera, scene, gui, stats, boxHelper
 let outputContainer, bvh, geometry, sdfTex, mesh
 let generateSdfPass, layerPass, raymarchPass
 const inverseBoundsMatrix = new THREE.Matrix4()
@@ -105,6 +107,8 @@ function init() {
             updateSDF()
         })
 
+    rebuildGUI()
+
     window.addEventListener(
         'resize',
         function () {
@@ -114,6 +118,38 @@ function init() {
         },
         false
     )
+}
+
+// build the gui with parameters based on the selected display mode
+function rebuildGUI() {
+    if (gui) {
+        gui.destroy()
+    }
+
+    params.layer = Math.min(params.resolution, params.layer)
+
+    gui = new GUI()
+
+    const generationFolder = gui.addFolder('generation')
+    generationFolder.add(params, 'gpuGeneration')
+    generationFolder.add(params, 'resolution', 10, 200, 1)
+    generationFolder.add(params, 'margin', 0, 1)
+    generationFolder.add(params, 'regenerate')
+
+    const displayFolder = gui.addFolder('display')
+    displayFolder
+      .add(params, 'mode', ['geometry', 'raymarching', 'layer', 'grid layers'])
+      .onChange(() => {
+        rebuildGUI()
+      })
+
+    if (params.mode === 'layer') {
+      displayFolder.add(params, 'layer', 0, params.resolution, 1)
+    }
+
+    if (params.mode === 'raymarching') {
+      displayFolder.add(params, 'surface', -0.2, 0.5)
+    }
 }
 
 function updateSDF() {
@@ -184,6 +220,8 @@ function updateSDF() {
     // update the timing display
     const delta = window.performance.now() - startTime
     outputContainer.innerText = `${delta.toFixed(2)}ms`
+
+    rebuildGUI()
 }
 
 function render() {
