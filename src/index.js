@@ -17,7 +17,7 @@ const params = {
     mode: 'raymarching',
     surface: -0.0077
 }
-  
+
 let renderer, camera, scene, stats, boxHelper
 let outputContainer, bvh, geometry, sdfTex, mesh
 let generateSdfPass, raymarchPass
@@ -159,7 +159,7 @@ function updateSDF() {
         // render into each layer
         for (let i = 0; i < dim; i++) {
             generateSdfPass.material.uniforms.zValue.value = i * pxWidth + halfWidth
-    
+
             renderer.setRenderTarget(sdfTex, i)
             generateSdfPass.render(renderer)
         }

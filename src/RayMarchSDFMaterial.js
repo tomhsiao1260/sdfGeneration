@@ -25,9 +25,19 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 			`,
 
       fragmentShader: /* glsl */ `
+        precision highp sampler3D;
 				varying vec2 vUv;
+        uniform float surface;
+				uniform sampler3D sdfTex;
+				uniform vec3 normalStep;
+				uniform mat4 projectionInverse;
+				uniform mat4 sdfTransformInverse;
+        #include <common>
+				#include <packing>
+
 				void main() {
-					gl_FragColor = vec4( vUv, 1.0, 1.0 );
+          float dx = texture( sdfTex, vec3(vUv, 0.5) ).r;
+					gl_FragColor = vec4( vec3(dx), 1.0 );
 				}
 			`
     });
