@@ -29,7 +29,8 @@ const params = {
 const volconfig = {
     clim1: 0,
     clim2: 1,
-    renderstyle: 'iso',
+    renderstyle: 'mip',
+    // renderstyle: 'iso',
     renderthreshold: 0.15,
     colormap: 'viridis',
     label: 0.7
@@ -318,6 +319,9 @@ function render() {
 		raymarchPass.material.uniforms.sdfTransformInverse.value.copy( mesh.matrixWorld ).invert().premultiply( inverseBoundsMatrix ).multiply( camera.matrixWorld );
 		raymarchPass.render( renderer );
     } else if ( params.mode === 'volume' ) {
+        // render the ray marched texture
+        camera.updateMatrixWorld();
+        mesh.updateMatrixWorld();
 
         const texture = cmtextures[ volconfig.colormap ]
         if (texture) volumePass.material.uniforms.cmdata.value = texture
@@ -325,7 +329,8 @@ function render() {
         volumePass.material.uniforms.clim.value.set( volconfig.clim1, volconfig.clim2 );
         volumePass.material.uniforms.renderstyle.value = volconfig.renderstyle == 'mip' ? 0 : 1; // 0: MIP, 1: ISO
         volumePass.material.uniforms.renderthreshold.value = volconfig.isothreshold; // For ISO renderstyle
-
+        volumePass.material.uniforms.projectionInverse.value.copy( camera.projectionMatrixInverse );
+		volumePass.material.uniforms.sdfTransformInverse.value.copy( mesh.matrixWorld ).invert().premultiply( inverseBoundsMatrix ).multiply( camera.matrixWorld );
 		volumePass.render( renderer );
     }
 }

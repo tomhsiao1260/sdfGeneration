@@ -47,6 +47,7 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 					float distInsideBox = max( 0.0, distB - distToBox );
 					return vec2( distToBox, distInsideBox );
 				}
+
 				void main() {
           float fragCoordZ = -1.;
 
@@ -67,6 +68,7 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
           float distInsideBox = boxIntersectionInfo.y;
 					bool intersectsBox = distInsideBox > 0.0;
 					gl_FragColor = vec4( 0.0 );
+
           if ( intersectsBox ) {
             // find the surface point in world space
             bool intersectsSurface = false;
