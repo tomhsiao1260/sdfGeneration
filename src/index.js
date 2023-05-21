@@ -1,13 +1,19 @@
+import Stats from 'stats.js'
 import * as THREE from 'three'
+import textureGray from './textures/cm_gray.png'
+import textureViridis from './textures/cm_viridis.png'
+
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
+import { NRRDLoader } from 'three/examples/jsm/loaders/NRRDLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import Stats from 'stats.js'
 import { MeshBVH, StaticGeometryGenerator } from 'three-mesh-bvh'
+
 import { GenerateSDFMaterial } from './GenerateSDFMaterial.js'
 import { RenderSDFLayerMaterial } from './RenderSDFLayerMaterial.js'
 import { RayMarchSDFMaterial } from './RayMarchSDFMaterial.js'
+import { VolumeMaterial } from './VolumeMaterial.js'
 
 const params = {
     gpuGeneration: true,
@@ -15,15 +21,29 @@ const params = {
     margin: 0.2,
     regenerate: () => updateSDF(),
 
-    mode: 'raymarching',
+    mode: 'volume',
     layer: 0,
     surface: 0.018
 }
 
+const volconfig = {
+    clim1: 0,
+    clim2: 1,
+    renderstyle: 'iso',
+    renderthreshold: 0.15,
+    colormap: 'viridis',
+    label: 0.7
+};
+
 let renderer, camera, scene, gui, stats, boxHelper
-let outputContainer, bvh, geometry, sdfTex, mesh
-let generateSdfPass, layerPass, raymarchPass
+let outputContainer, bvh, geometry, mesh, sdfTex, volumeTex
+let generateSdfPass, layerPass, raymarchPass, volumePass
 const inverseBoundsMatrix = new THREE.Matrix4()
+
+const cmtextures = {
+    viridis: new THREE.TextureLoader().load( textureViridis ),
+    gray: new THREE.TextureLoader().load( textureGray )
+};
 
 init()
 render()
@@ -76,8 +96,11 @@ function init() {
     // screen pass to render the sdf ray marching
     raymarchPass = new FullScreenQuad(new RayMarchSDFMaterial())
 
+    // volume pass to render the volume data
+    volumePass = new FullScreenQuad(new VolumeMaterial())
+
     new OBJLoader()
-        .loadAsync('tree.obj')
+        .loadAsync('model.obj')
         .then((object) => {
             const staticGen = new StaticGeometryGenerator(object)
 
@@ -95,6 +118,27 @@ function init() {
             scene.add(mesh)
 
             updateSDF()
+        })
+
+    new NRRDLoader()
+        .loadAsync('data.nrrd')
+        .then((volume) => {
+
+            // THREEJS will select R32F (33326) based on the THREE.RedFormat and THREE.FloatType.
+            // Also see https://www.khronos.org/registry/webgl/specs/latest/2.0/#TEXTURE_TYPES_FORMATS_FROM_DOM_ELEMENTS_TABLE
+            volumeTex = new THREE.Data3DTexture( volume.data, volume.xLength, volume.yLength, volume.zLength )
+            volumeTex.format = THREE.RedFormat
+            volumeTex.type = THREE.FloatType
+            volumeTex.minFilter = THREE.LinearFilter
+            volumeTex.magFilter = THREE.LinearFilter
+            // volumeTex.minFilter = THREE.NearestFilter
+            // volumeTex.magFilter = THREE.NearestFilter
+            volumeTex.unpackAlignment = 1
+            volumeTex.needsUpdate = true
+
+            const material = volumePass.material;
+            material.uniforms.data.value = volumeTex;
+            material.uniforms.size.value.set( volume.xLength, volume.yLength, volume.zLength );
         })
 
     rebuildGUI()
@@ -128,7 +172,7 @@ function rebuildGUI() {
 
     const displayFolder = gui.addFolder('display')
     displayFolder
-      .add(params, 'mode', ['geometry', 'raymarching', 'layer', 'grid layers'])
+      .add(params, 'mode', ['geometry', 'raymarching', 'layer', 'grid layers', 'volume'])
       .onChange(() => {
         rebuildGUI()
       })
@@ -139,6 +183,13 @@ function rebuildGUI() {
 
     if (params.mode === 'raymarching') {
       displayFolder.add(params, 'surface', -0.2, 0.5)
+    }
+
+    if (params.mode === 'volume') {
+        displayFolder.add(volconfig, 'renderstyle', ['mip', 'iso'])
+        displayFolder.add(volconfig, 'clim1', 0, 1)
+        displayFolder.add(volconfig, 'clim2', 0, 1)
+        displayFolder.add(volconfig, 'renderthreshold', 0, 1)
     }
 }
 
@@ -204,6 +255,7 @@ function updateSDF() {
         // generateSdfPass.render(renderer);
         // layerPass.render(renderer);
         // raymarchPass.render(renderer);
+        // volumePass.render(renderer);
     }
 
     // update the timing display
@@ -265,5 +317,15 @@ function render() {
 		raymarchPass.material.uniforms.projectionInverse.value.copy( camera.projectionMatrixInverse );
 		raymarchPass.material.uniforms.sdfTransformInverse.value.copy( mesh.matrixWorld ).invert().premultiply( inverseBoundsMatrix ).multiply( camera.matrixWorld );
 		raymarchPass.render( renderer );
+    } else if ( params.mode === 'volume' ) {
+
+        const texture = cmtextures[ volconfig.colormap ]
+        if (texture) volumePass.material.uniforms.cmdata.value = texture
+
+        volumePass.material.uniforms.clim.value.set( volconfig.clim1, volconfig.clim2 );
+        volumePass.material.uniforms.renderstyle.value = volconfig.renderstyle == 'mip' ? 0 : 1; // 0: MIP, 1: ISO
+        volumePass.material.uniforms.renderthreshold.value = volconfig.isothreshold; // For ISO renderstyle
+
+		volumePass.render( renderer );
     }
 }

@@ -90,7 +90,11 @@ export class RayMarchSDFMaterial extends ShaderMaterial {
 							point.xyz += rayDirection * abs( distanceToSurface );
             }
             // find the surface normal
-						if ( intersectsSurface ) {
+            if ( intersectsSurface ) {
+              gl_FragColor = vec4(1.0);
+            }
+						// if ( intersectsSurface ) {
+            if ( false ) {
               fragCoordZ = -point.z;
 
               // compute the surface normal (performance bottleneck)
